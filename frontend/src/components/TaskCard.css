@@ -1,34 +1,135 @@
+/* TaskCard.css - Premium Task Card Styling */
+
+@import '../styles/variables.css';
+
 .task-card {
-  padding: 1rem;
-  border-radius: var(--radius);
-  background: var(--color-surface);
+  padding: 1.75rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
   position: relative;
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
+
+/* Hover effect with soft glow */
+.task-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.task-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Completed/Done state styling */
 .task-card.done {
-  opacity: 0.6;
+  opacity: 0.7;
 }
+
+.task-card.done::before {
+  background: #10b981;
+}
+
+.task-card.done h3 {
+  text-decoration: line-through;
+  color: #64748b;
+}
+
 .task-card h3 {
-  margin-bottom: 0.5rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.4;
+  margin: 0;
 }
+
+.task-card p {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+}
+
 .task-card .deadline {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  align-self: flex-start;
+  margin-top: auto;
 }
+
+.task-card.done .deadline {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+/* Actions */
 .task-card .actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1rem;
 }
+
 .task-card button {
-  background: var(--color-primary);
-  color: #fff;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
   font-size: 0.85rem;
-  transition: var(--transition);
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
-.task-card button:hover {
-  opacity: 0.9;
+
+/* Complete / Undo button style */
+.btn-toggle-complete {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+.btn-toggle-complete:hover {
+  background: #818cf8;
+}
+
+.task-card.done .btn-toggle-complete {
+  background: transparent;
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.task-card.done .btn-toggle-complete:hover {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* Delete button style */
+.btn-delete-task {
+  background: transparent;
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-delete-task:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.4);
 }

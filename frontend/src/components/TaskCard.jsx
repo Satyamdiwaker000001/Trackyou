@@ -1,23 +1,29 @@
 import './TaskCard.css';
 import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
 
-export default function TaskCard({ task }) {
-  const { title, description, deadline, completed } = task;
+export default function TaskCard({ task, onToggleComplete, onDelete }) {
+  const { _id, title, description, deadline, completed } = task;
+
   const toggle = () => {
-    // Placeholder: actual update via API later
-    console.log('Toggle task', task._id);
+    if (onToggleComplete) onToggleComplete(_id, completed);
   };
-  const deleteTask = () => {
-    console.log('Delete task', task._id);
+
+  const handleDelete = () => {
+    if (onDelete) onDelete(_id);
   };
+
   return (
-    <div className={`task-card glass ${completed ? 'done' : ''}`}>
+    <div className={`task-card ${completed ? 'done' : ''}`}>
       <h3>{title}</h3>
       <p>{description}</p>
       <p className="deadline">Due {formatDistanceToNow(new Date(deadline), { addSuffix: true })}</p>
       <div className="actions">
-        <button onClick={toggle}>{completed ? 'Undo' : 'Done'}</button>
-        <button onClick={deleteTask}>✕</button>
+        <button className="btn-toggle-complete" onClick={toggle}>
+          {completed ? 'Undo' : 'Complete'}
+        </button>
+        <button className="btn-delete-task" onClick={handleDelete}>
+          Delete
+        </button>
       </div>
     </div>
   );
