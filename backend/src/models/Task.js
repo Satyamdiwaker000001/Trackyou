@@ -14,6 +14,20 @@ const TaskSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  tags: {
+    type: [String],
+    default: []
+  },
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: false
+  },
   completed: {
     type: Boolean,
     default: false
@@ -35,6 +49,6 @@ const TaskSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Task', TaskSchema);

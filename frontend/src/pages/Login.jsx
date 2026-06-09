@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, register, oauthLogin, oauthMock } from '../services/api';
+import { login, register, oauthLogin, oauthMock, forgotPassword } from '../services/api';
 import { auth, googleProvider, signInWithPopup } from '../services/firebase';
 import { FiMail, FiLock, FiUser, FiArrowRight } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
@@ -13,6 +13,11 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
+  
   const navigate = useNavigate();
 
   const handleOAuth = async providerName => {
@@ -97,6 +102,24 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = async e => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      alert('Please enter your email');
+      return;
+    }
+    setIsForgotSubmitting(true);
+    try {
+      await forgotPassword(forgotEmail);
+      alert('If an account exists with this email, a reset link has been sent.');
+      setIsForgotModalOpen(false);
+    } catch (err) {
+      alert(err.message || 'Failed to send password reset email.');
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
+
   return (
     <div className="auth-page">
       {/* Background glowing effects */}
@@ -156,7 +179,7 @@ export default function Login() {
           <div className="form-group">
             <div className="label-wrapper">
               <label htmlFor="password">Password</label>
-              {!isRegister && <a href="#forgot" className="forgot-link">Forgot password?</a>}
+              {!isRegister && <span onClick={() => setIsForgotModalOpen(true)} className="forgot-link" style={{ cursor: 'pointer' }}>Forgot password?</span>}
             </div>
             <div className="input-icon-wrap">
               <FiLock className="input-icon" />
@@ -217,6 +240,40 @@ export default function Login() {
           </span>
         </p>
       </div>
+
+      {isForgotModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsForgotModalOpen(false)}>
+          <div className="auth-card" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <div className="auth-header">
+              <h2>Reset Password</h2>
+              <p>Enter your email to receive a password reset link.</p>
+            </div>
+            <form onSubmit={handleForgotPassword} className="auth-form">
+              <div className="form-group">
+                <div className="input-icon-wrap">
+                  <FiMail className="input-icon" />
+                  <input
+                    type="email"
+                    placeholder="name@company.com"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    required
+                    disabled={isForgotSubmitting}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="auth-submit-btn" style={{ background: 'transparent', border: '1px solid #475569' }} onClick={() => setIsForgotModalOpen(false)} disabled={isForgotSubmitting}>
+                  Cancel
+                </button>
+                <button type="submit" className="auth-submit-btn" disabled={isForgotSubmitting}>
+                  {isForgotSubmitting ? 'Sending...' : 'Send Link'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

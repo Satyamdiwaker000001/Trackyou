@@ -531,6 +531,60 @@ const sendTestEmail = async (toEmail) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 4. PASSWORD RESET EMAIL
+// ─────────────────────────────────────────────────────────────────────────────
+const sendPasswordResetEmail = async (toEmail, userName, resetToken) => {
+  const t = await createTransporter();
+  const fromEmail = process.env.EMAIL_FROM || '"TrackYourDay" <trackyourday.support@gmail.com>';
+  const resetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
+  
+  const bodyHtml = `
+    <tr>
+      <td class="hp" style="padding:48px 48px 40px;background:linear-gradient(160deg,#100a0a 0%,#150c1c 50%,#0a0f1e 100%);text-align:center;border-bottom:1px solid rgba(239,68,68,0.1);">
+        <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin-bottom:24px;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:50%;width:64px;height:64px;text-align:center;vertical-align:middle;">
+              ${icon.shield('#ffffff', 30)}
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#ef4444;margin:0 0 12px 0;">Security Alert</p>
+        <h1 style="font-size:28px;font-weight:800;color:#f8fafc;margin:0 0 10px 0;letter-spacing:-0.03em;">Reset Your Password</h1>
+      </td>
+    </tr>
+    <tr><td style="height:3px;background:linear-gradient(90deg,#ef4444,#f59e0b,#ef4444);"></td></tr>
+    <tr>
+      <td class="bp" style="padding:36px 48px;background:#0f1623;">
+        <p style="font-size:14px;color:#94a3b8;line-height:1.8;margin:0 0 24px 0;">
+          Hi ${userName}, you recently requested to reset your password for your TrackYourDay account. Click the button below to proceed.
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin-bottom:28px;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:12px;box-shadow:0 8px 24px rgba(239,68,68,0.3);">
+              <a href="${resetUrl}" style="display:inline-block;padding:15px 36px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">
+                Reset Password
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:12px;color:#475569;margin:0;line-height:1.65;">
+          If you did not request a password reset, please ignore this email or reply to let us know. This password reset is only valid for the next 60 minutes.
+        </p>
+      </td>
+    </tr>
+  `;
+
+  const info = await t.sendMail({
+    from: fromEmail,
+    to: toEmail,
+    subject: 'TrackYourDay — Password Reset Request',
+    html: buildEmailWrapper(bodyHtml, '#ef4444'),
+  });
+  console.log('Reset email sent: %s', info.messageId);
+  return { success: true };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
-module.exports = { createTransporter, sendWelcomeEmail, sendReminderEmail, sendTestEmail };
+module.exports = { createTransporter, sendWelcomeEmail, sendReminderEmail, sendTestEmail, sendPasswordResetEmail };

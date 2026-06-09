@@ -1,17 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { sendWelcomeEmail } = require('../services/email');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/email');
+const disposableDomains = require('disposable-email-domains');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'trackyou_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not defined.");
+  process.exit(1);
+}
+
+const isDisposableEmail = (email) => {
+  if (!email || !email.includes('@')) return true;
+  const domain = email.split('@')[1];
+  return disposableDomains.includes(domain.toLowerCase());
+};
 
 // Register User
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
+  }
+  if (isDisposableEmail(email)) {
+    return res.status(400).json({ message: 'Temporary or disposable emails are not allowed' });
   }
 
   try {
@@ -42,6 +57,9 @@ router.post('/login', async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
+  if (isDisposableEmail(email)) {
+    return res.status(403).json({ message: 'Access denied for disposable emails' });
+  }
 
   try {
     const user = await User.findOne({ email });
@@ -69,6 +87,9 @@ router.post('/oauth', async (req, res) => {
   
   if (!email || !provider) {
     return res.status(400).json({ message: 'Email and provider are required' });
+  }
+  if (isDisposableEmail(email)) {
+    return res.status(403).json({ message: 'Temporary or disposable emails are not allowed' });
   }
 
   try {
@@ -154,6 +175,70 @@ router.get('/me', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Me endpoint error:', err);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Change Password
+router.post('/change-password', authMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    if (user.provider !== 'local') return res.status(400).json({ message: 'OAuth users cannot change password this way' });
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(400).json({ message: 'Incorrect current password' });
+
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Forgot Password
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'No user found with that email' });
+
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    await sendPasswordResetEmail(user.email, user.name || 'User', resetToken);
+    res.json({ message: 'Password reset email sent' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ message: 'Error sending reset email' });
+  }
+});
+
+// Reset Password
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  try {
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password has been successfully reset' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: 'Error resetting password' });
   }
 });
 

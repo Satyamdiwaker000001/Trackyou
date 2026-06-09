@@ -76,6 +76,28 @@ export async function getProfile() {
 }
 
 /**
+ * Send forgot password email.
+ */
+export async function forgotPassword(email) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send reset link");
+    }
+    return data;
+  } catch (err) {
+    console.error("Forgot password API error:", err);
+    throw err;
+  }
+}
+
+/**
  * Send test email to current user.
  */
 export async function sendTestEmail() {
@@ -91,6 +113,47 @@ export async function sendTestEmail() {
     return data;
   } catch (err) {
     console.error("Test email API error:", err);
+    throw err;
+  }
+}
+
+/**
+ * Change current user password.
+ */
+export async function changePassword({ currentPassword, newPassword }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to change password");
+    }
+    return data;
+  } catch (err) {
+    console.error("Change password API error:", err);
+    throw err;
+  }
+}
+
+/**
+ * Delete current user account.
+ */
+export async function deleteAccount() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user`, {
+      method: "DELETE",
+      headers: getHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to delete account");
+    }
+    return data;
+  } catch (err) {
+    console.error("Delete account API error:", err);
     throw err;
   }
 }

@@ -63,23 +63,42 @@ export default function Landing() {
           <p>Carefully crafted features designed to keep you on schedule and tracking forward.</p>
         </div>
         
-        <div className="features-grid">
-          <div className="feature-card glass-card">
-            <div className="feature-icon">📅</div>
-            <h3>Task Scheduler</h3>
-            <p>Organize daily chores, study schedules, or work tasks with high-precision dates and notes.</p>
+        <div className="bento-grid">
+          <div className="bento-card bento-large glass-card">
+            <div className="bento-content">
+              <h3>Task Scheduler</h3>
+              <p>Organize daily chores, study schedules, or work tasks with high-precision dates and notes.</p>
+            </div>
+            <div className="bento-visual">
+              <div className="mini-task-list">
+                <div className="mini-task"></div>
+                <div className="mini-task"></div>
+                <div className="mini-task completed"></div>
+              </div>
+            </div>
           </div>
           
-          <div className="feature-card glass-card">
+          <div className="bento-card glass-card">
             <div className="feature-icon">⏰</div>
-            <h3>Smart Notifications</h3>
-            <p>Receive elegant email reminders automatically when deadlines approach. Never miss a target.</p>
+            <div className="bento-content">
+              <h3>Smart Notifications</h3>
+              <p>Receive elegant email reminders automatically when deadlines approach. Never miss a target.</p>
+            </div>
           </div>
           
-          <div className="feature-card glass-card">
+          <div className="bento-card glass-card">
             <div className="feature-icon">📈</div>
-            <h3>Insight Statistics</h3>
-            <p>Track your task completion progress rates with clean, visual status meters and gauges.</p>
+            <div className="bento-content">
+              <h3>Insight Statistics</h3>
+              <p>Track your task completion progress rates with clean, visual status meters and gauges.</p>
+            </div>
+          </div>
+          
+          <div className="bento-card bento-wide glass-card">
+            <div className="bento-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+              <h3>Project Grouping</h3>
+              <p>Keep your tasks organized into distinct projects for perfect clarity and focus across all your different life domains.</p>
+            </div>
           </div>
         </div>
       </section>

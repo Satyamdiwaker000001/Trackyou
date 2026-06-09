@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLogOut } from 'react-icons/fi';
+import { FiLogOut, FiMenu } from 'react-icons/fi';
 
 /**
  * Helper functions for user formatting
@@ -32,14 +32,20 @@ const getLoginProvider = userData => {
  *  - activeTab: current active tab string (used for breadcrumb)
  *  - user: user object containing photo, name etc.
  *  - handleLogout: function to log out the user
+ *  - setIsSidebarOpen: function to open the sidebar on mobile
  */
-const Header = ({ activeTab, user, handleLogout }) => {
+const Header = ({ activeTab, user, handleLogout, setIsSidebarOpen }) => {
   return (
     <header className="panel-header">
-      <div className="header-breadcrumbs">
-        <span className="breadcrumb-parent">Dashboard</span>
-        <span className="breadcrumb-divider">/</span>
-        <span className="breadcrumb-current" style={{ textTransform: 'capitalize' }}>{activeTab}</span>
+      <div className="header-left">
+        <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
+          <FiMenu />
+        </button>
+        <div className="header-breadcrumbs">
+          <span className="breadcrumb-parent">Dashboard</span>
+          <span className="breadcrumb-divider">/</span>
+          <span className="breadcrumb-current" style={{ textTransform: 'capitalize' }}>{activeTab}</span>
+        </div>
       </div>
 
       <div className="header-actions">
