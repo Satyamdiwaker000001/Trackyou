@@ -1,0 +1,34 @@
+.task-card {
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  position: relative;
+  transition: var(--transition);
+}
+.task-card.done {
+  opacity: 0.6;
+}
+.task-card h3 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.task-card .deadline {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+.task-card .actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.task-card button {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  transition: var(--transition);
+}
+.task-card button:hover {
+  opacity: 0.9;
+}
