@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from '../components/TaskCard';
-import { fetchTasks, createTask, updateTask, deleteTask, getProfile, fetchProjects, createProject, deleteProject } from '../services/api';
-import { FiGrid, FiList, FiTrendingUp, FiSettings, FiBell, FiSearch, FiLogOut, FiPlus, FiX, FiFolder, FiTrash2 } from 'react-icons/fi';
+import { fetchTasks, createTask, updateTask, deleteTask, getProfile, fetchProjects, createProject, deleteProject, sendTestEmail } from '../services/api';
+import { FiGrid, FiList, FiTrendingUp, FiSettings, FiBell, FiSearch, FiLogOut, FiPlus, FiX, FiFolder, FiTrash2, FiMail, FiCheckSquare, FiClock, FiZap } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, isSameDay } from 'date-fns';
 import './Dashboard.css';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
 
 
 
@@ -16,6 +18,15 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Settings State
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  
+  // Search, Filtering & Sorting State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('deadline');
   
   // Task form
   const [taskTitle, setTaskTitle] = useState('');
@@ -51,6 +62,15 @@ export default function Dashboard() {
     loadDashboardData();
   }, [navigate]);
 
+  // Handle dark mode side effect
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.remove('light-theme');
+    } else {
+      document.body.classList.add('light-theme');
+    }
+  }, [isDarkMode]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
@@ -62,12 +82,20 @@ export default function Dashboard() {
       alert("Title and Deadline are required");
       return;
     }
+
+    // Validate the date is a real, parseable date
+    const parsedDeadline = new Date(taskDeadline);
+    if (isNaN(parsedDeadline.getTime())) {
+      alert("Please select a valid deadline date and time.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const newTask = await createTask({
         title: taskTitle,
         description: taskDesc,
-        deadline: taskDeadline
+        deadline: parsedDeadline.toISOString()  // Always send ISO 8601 to backend
       });
       setTasks([newTask, ...tasks]);
       setTaskTitle('');
@@ -133,6 +161,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleTestEmail = async () => {
+    try {
+      await sendTestEmail();
+      alert("Test email sent successfully! Please check your real inbox.");
+    } catch (err) {
+      alert("Error sending test email. Have you set your real Gmail credentials in backend/.env yet?\n\nError: " + err.message);
+    }
+  };
+
   // Helper functions for user formatting
   const formatName = userData => {
     if (userData?.name) return userData.name;
@@ -154,6 +191,30 @@ export default function Dashboard() {
     if (userData.provider === 'google') return 'Google OAuth';
     if (userData.provider === 'github') return 'GitHub OAuth';
     return 'Email Account';
+  };
+
+  const getFilteredAndSortedTasks = () => {
+    return tasks
+      .filter(task => {
+        const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchesStatus = statusFilter === 'all' || 
+                              (statusFilter === 'completed' && task.completed) || 
+                              (statusFilter === 'pending' && !task.completed);
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'deadline') {
+          return new Date(a.deadline) - new Date(b.deadline);
+        }
+        if (sortBy === 'title') {
+          return a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'status') {
+          return (a.completed === b.completed) ? 0 : a.completed ? 1 : -1;
+        }
+        return 0;
+      });
   };
 
   // Metrics
@@ -199,7 +260,10 @@ export default function Dashboard() {
       <section className="metrics-grid">
         <div className="metric-card glass">
           <div className="metric-header">
-            <span className="metric-title">Tasks Completed</span>
+            <span className="metric-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiCheckSquare style={{ color: 'var(--color-success)', fontSize: '1.25rem' }} />
+              Tasks Completed
+            </span>
             <span className="metric-trend text-success">+{successRate}%</span>
           </div>
           <div className="metric-body-row">
@@ -216,7 +280,10 @@ export default function Dashboard() {
 
         <div className="metric-card glass">
           <div className="metric-header">
-            <span className="metric-title">Active Tasks</span>
+            <span className="metric-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiClock style={{ color: 'var(--color-pending)', fontSize: '1.25rem' }} />
+              Active Tasks
+            </span>
             <span className="metric-badge-tag status-pending">In Progress</span>
           </div>
           <div className="metric-body">
@@ -227,7 +294,10 @@ export default function Dashboard() {
 
         <div className="metric-card glass">
           <div className="metric-header">
-            <span className="metric-title">Success Rate</span>
+            <span className="metric-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiTrendingUp style={{ color: 'var(--color-primary)', fontSize: '1.25rem' }} />
+              Success Rate
+            </span>
             <span className="metric-trend text-accent">Stable</span>
           </div>
           <div className="metric-body">
@@ -238,7 +308,10 @@ export default function Dashboard() {
 
         <div className="metric-card glass">
           <div className="metric-header">
-            <span className="metric-title">Focus Time</span>
+            <span className="metric-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiZap style={{ color: 'var(--color-accent)', fontSize: '1.25rem' }} />
+              Focus Time
+            </span>
             <span className="metric-badge-tag status-success">Active</span>
           </div>
           <div className="metric-body">
@@ -263,15 +336,15 @@ export default function Dashboard() {
             <AreaChart data={dynamicChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.35}/>
+                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-              <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} itemStyle={{ color: '#e2e8f0' }} />
-              <Area type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorCompleted)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-secondary)', fontSize: 12}} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-secondary)', fontSize: 12}} />
+              <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(16px)' }} itemStyle={{ color: 'var(--color-text-primary)' }} />
+              <Area type="monotone" dataKey="completed" stroke="var(--color-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorCompleted)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -279,30 +352,75 @@ export default function Dashboard() {
     </>
   );
 
-  const renderTasks = () => (
-    <section className="panel-tasks-section">
-      <div className="tasks-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h2>My Daily Routines</h2>
-          <span className="tasks-count-badge">{pendingTasks} Pending</span>
+  const renderTasks = () => {
+    const filtered = getFilteredAndSortedTasks();
+    return (
+      <section className="panel-tasks-section">
+        <div className="tasks-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h2>My Daily Routines</h2>
+            <span className="tasks-count-badge">{pendingTasks} Pending</span>
+          </div>
+          <button className="primary-btn" style={{ padding: '0.6rem 1rem', borderRadius: '10px' }} onClick={() => setIsModalOpen(true)}>
+            <FiPlus /> New Task
+          </button>
         </div>
-        <button className="primary-btn" style={{ padding: '0.6rem 1rem', borderRadius: '10px' }} onClick={() => setIsModalOpen(true)}>
-          <FiPlus /> New Task
-        </button>
-      </div>
-      {tasks.length === 0 ? (
-        <div className="empty-state glass">
-          <p>No tasks found. Click "New Task" in the sidebar to create your first goal!</p>
-        </div>
-      ) : (
-        <div className="task-grid">
-          {tasks.map(task => (
-            <TaskCard key={task._id} task={task} onToggleComplete={handleToggleComplete} onDelete={handleDeleteTask} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
+
+        {tasks.length > 0 && (
+          <div className="filter-bar">
+            <div className="filter-group-left">
+              <div className="filter-search-input">
+                <FiSearch className="search-icon" />
+                <input 
+                  type="text" 
+                  placeholder="Search tasks..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                />
+              </div>
+            </div>
+            <div className="filter-group-right">
+              <select 
+                className="filter-select" 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+              <select 
+                className="filter-select" 
+                value={sortBy} 
+                onChange={e => setSortBy(e.target.value)}
+              >
+                <option value="deadline">Sort by Due Date</option>
+                <option value="title">Sort by Title</option>
+                <option value="status">Sort by Status</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {tasks.length === 0 ? (
+          <div className="empty-state glass">
+            <p>No tasks found. Click "New Task" in the sidebar to create your first goal!</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-state glass">
+            <FiSearch style={{ fontSize: '3rem', marginBottom: '1rem', color: 'var(--color-text-muted)' }} />
+            <p>No tasks match your search or filter criteria. Try resetting them.</p>
+          </div>
+        ) : (
+          <div className="task-grid">
+            {filtered.map(task => (
+              <TaskCard key={task._id} task={task} onToggleComplete={handleToggleComplete} onDelete={handleDeleteTask} />
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
 
   const renderProjects = () => (
     <section className="panel-tasks-section">
@@ -349,20 +467,20 @@ export default function Dashboard() {
         <h2>Deep Analytics</h2>
       </div>
       <div className="chart-widget-section glass" style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-        <h3 style={{ color: '#ffffff', marginBottom: '1rem' }}>Weekly Velocity</h3>
-        <ResponsiveContainer width="100%" height="80%">
+        <h3 style={{ color: 'var(--color-text-primary)', marginBottom: '1rem' }}>Weekly Velocity</h3>
+        <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={dynamicChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorCompletedBig" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#818cf8" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
+                <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.45}/>
+                <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-            <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
-            <Area type="monotone" dataKey="completed" stroke="#818cf8" strokeWidth={3} fillOpacity={1} fill="url(#colorCompletedBig)" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-secondary)', fontSize: 12}} />
+            <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-secondary)', fontSize: 12}} />
+            <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', backdropFilter: 'blur(16px)' }} itemStyle={{ color: 'var(--color-text-primary)' }} />
+            <Area type="monotone" dataKey="completed" stroke="var(--color-accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorCompletedBig)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -378,7 +496,7 @@ export default function Dashboard() {
         
         {/* Profile Card */}
         <div className="metric-card glass" style={{ padding: '2rem', gap: '1.5rem', minHeight: 'auto' }}>
-          <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>Profile Details</h3>
+          <h3 style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem', margin: 0 }}>Profile Details</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             <div className="user-avatar-circle" style={{ width: '80px', height: '80px', fontSize: '2rem', ...(user && user.photo ? { background: 'none' } : {}) }}>
               {user && user.photo ? (
@@ -388,8 +506,8 @@ export default function Dashboard() {
               )}
             </div>
             <div>
-              <h3 style={{ fontSize: '1.5rem', color: '#fff', margin: '0 0 0.5rem 0' }}>{user ? formatName(user) : 'Loading...'}</h3>
-              <p style={{ color: '#94a3b8', margin: '0 0 0.5rem 0' }}>{user?.email}</p>
+              <h3 style={{ fontSize: '1.5rem', color: 'var(--color-text-primary)', margin: '0 0 0.5rem 0' }}>{user ? formatName(user) : 'Loading...'}</h3>
+              <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 0.5rem 0' }}>{user?.email}</p>
               <span className="metric-badge-tag status-success">{user ? getLoginProvider(user) : 'Loading...'}</span>
             </div>
           </div>
@@ -397,42 +515,47 @@ export default function Dashboard() {
 
         {/* Preferences */}
         <div className="metric-card glass" style={{ padding: '2rem', gap: '1.5rem', minHeight: 'auto' }}>
-          <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>Preferences</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
+          <h3 style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem', margin: 0 }}>Preferences</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '1rem' }}>
             <div>
-              <p style={{ color: '#e2e8f0', margin: '0 0 0.25rem 0', fontWeight: 600 }}>Email Notifications</p>
-              <p style={{ color: '#64748b', margin: 0, fontSize: '0.85rem' }}>Receive daily summaries of your tasks</p>
+              <p style={{ color: 'var(--color-text-primary)', margin: '0 0 0.25rem 0', fontWeight: 600 }}>Email Notifications</p>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: '0.85rem' }}>Receive daily summaries of your tasks</p>
             </div>
             <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
-              <input type="checkbox" defaultChecked style={{ opacity: 0, width: 0, height: 0 }} />
-              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#6366f1', transition: '.4s', borderRadius: '34px' }}></span>
+              <input type="checkbox" checked={emailNotifications} onChange={(e) => setEmailNotifications(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: emailNotifications ? 'var(--color-primary)' : '#475569', transition: '.4s', borderRadius: '34px' }}></span>
+              <span style={{ position: 'absolute', height: '14px', width: '14px', left: emailNotifications ? '22px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
             </label>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <p style={{ color: '#e2e8f0', margin: '0 0 0.25rem 0', fontWeight: 600 }}>Dark Mode</p>
-              <p style={{ color: '#64748b', margin: 0, fontSize: '0.85rem' }}>Toggle application theme</p>
+              <p style={{ color: 'var(--color-text-primary)', margin: '0 0 0.25rem 0', fontWeight: 600 }}>Dark Mode</p>
+              <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: '0.85rem' }}>Toggle application theme</p>
             </div>
             <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
-              <input type="checkbox" defaultChecked style={{ opacity: 0, width: 0, height: 0 }} />
-              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#6366f1', transition: '.4s', borderRadius: '34px' }}></span>
+              <input type="checkbox" checked={isDarkMode} onChange={(e) => setIsDarkMode(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDarkMode ? 'var(--color-primary)' : '#475569', transition: '.4s', borderRadius: '34px' }}></span>
+              <span style={{ position: 'absolute', height: '14px', width: '14px', left: isDarkMode ? '22px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
             </label>
           </div>
         </div>
 
         {/* Security & Danger Zone */}
         <div className="metric-card glass" style={{ padding: '2rem', gap: '1.5rem', minHeight: 'auto' }}>
-          <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>Security</h3>
+          <h3 style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem', margin: 0 }}>Security</h3>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button className="primary-btn" onClick={handleTestEmail} style={{ padding: '0.6rem 1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiMail /> Send Test Email
+            </button>
             {user && user.provider === 'local' && (
-              <button className="primary-btn" onClick={() => alert("Change Password UI coming soon")} style={{ padding: '0.6rem 1rem', borderRadius: '8px' }}>
+              <button className="btn-cancel" onClick={() => alert("Change Password UI coming soon")} style={{ padding: '0.6rem 1rem', borderRadius: '8px', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-hover)' }}>
                 Change Password
               </button>
             )}
-            <button className="btn-cancel" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+            <button className="btn-cancel" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-hover)' }}>
               <FiLogOut /> Sign Out
             </button>
-            <button className="btn-cancel" onClick={() => alert("Are you sure? This cannot be undone.")} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+            <button className="btn-cancel" onClick={() => alert("Are you sure? This cannot be undone.")} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
               Delete Account
             </button>
           </div>
@@ -444,81 +567,10 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-layout">
-      {/* Left Sidebar */}
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-logo-wrap">
-            <span className="brand-dot"></span>
-          </div>
-          <h2>TrackYourDay</h2>
-        </div>
-
-        <nav className="sidebar-menu">
-          <div className="menu-group">
-            <span className="menu-group-title">Main Menu</span>
-            <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-              <FiGrid className="menu-icon" /> Overview
-            </button>
-            <button className={`menu-item ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>
-              <FiList className="menu-icon" /> Tasks
-            </button>
-            <button className={`menu-item ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
-              <FiFolder className="menu-icon" /> Projects
-            </button>
-            <button className={`menu-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
-              <FiTrendingUp className="menu-icon" /> Analytics
-            </button>
-          </div>
-
-          <div className="menu-group">
-            <span className="menu-group-title">Preferences</span>
-            <button className={`menu-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-              <FiSettings className="menu-icon" /> Settings
-            </button>
-          </div>
-        </nav>
-
-        {/* Sidebar Footer Action */}
-        <div className="sidebar-action">
-          <button className="primary-btn sidebar-btn-add" onClick={() => setIsModalOpen(true)}>
-            <FiPlus className="btn-icon-svg" /> New Task
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Dashboard Panel */}
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} setIsModalOpen={setIsModalOpen} />
       <div className="dashboard-panel">
         <div className="dashboard-bg-glow"></div>
-        {/* Top Navbar Header */}
-        <header className="panel-header">
-          <div className="header-breadcrumbs">
-            <span className="breadcrumb-parent">Dashboard</span>
-            <span className="breadcrumb-divider">/</span>
-            <span className="breadcrumb-current" style={{ textTransform: 'capitalize' }}>{activeTab}</span>
-          </div>
-
-          <div className="header-actions">
-            {/* User Profile Info */}
-            <div className="user-profile-menu">
-              <div className="user-avatar-circle" style={user && user.photo ? { background: 'none' } : {}}>
-                {user && user.photo ? (
-                  <img src={user.photo} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                ) : (
-                  getInitials(user)
-                )}
-              </div>
-              <div className="user-meta">
-                <span className="user-name">{user ? formatName(user) : 'Loading...'}</span>
-                <span className="user-provider-tag">{user ? getLoginProvider(user) : ''}</span>
-              </div>
-              <button className="btn-panel-logout" onClick={handleLogout} title="Logout">
-                <FiLogOut />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Panel Main Area */}
+        <Header activeTab={activeTab} user={user} handleLogout={handleLogout} />
         <main className="panel-content">
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'tasks' && renderTasks()}
@@ -570,6 +622,7 @@ export default function Dashboard() {
                   id="taskDeadline"
                   type="datetime-local"
                   value={taskDeadline}
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                   onChange={e => setTaskDeadline(e.target.value)}
                   required
                   disabled={isSubmitting}

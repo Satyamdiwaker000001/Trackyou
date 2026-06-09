@@ -25,7 +25,11 @@ const TaskSchema = new mongoose.Schema({
   },
   emailNotified: {
     type: Boolean,
-    default: false // tracks if reminder email has already been sent
+    default: false  // pre-deadline one-time notification sent
+  },
+  lastOverdueNotifiedAt: {
+    type: Date,
+    default: null   // timestamp of last overdue repeat-reminder sent
   },
   createdAt: {
     type: Date,

@@ -41,9 +41,20 @@ export default function Login() {
     } catch (err) {
       console.error(err);
       
-      // Fallback to mock if Firebase isn't configured
-      if (err.code === 'auth/invalid-api-key' || err.code === 'auth/internal-error' || err.message?.includes('API key not valid') || err.message?.includes('auth/configuration-not-found')) {
-        console.warn("Firebase not configured properly, falling back to mock OAuth...");
+      // Fallback: Firebase not configured, OR backend is unreachable (network error)
+      const isFirebaseConfigError = err.code === 'auth/invalid-api-key' 
+        || err.code === 'auth/internal-error' 
+        || err.message?.includes('API key not valid') 
+        || err.message?.includes('auth/configuration-not-found');
+
+      const isNetworkError = err instanceof TypeError && err.message?.includes('fetch');
+
+      if (isFirebaseConfigError || isNetworkError) {
+        if (isNetworkError) {
+          console.warn("Backend unreachable, falling back to mock OAuth...");
+        } else {
+          console.warn("Firebase not configured properly, falling back to mock OAuth...");
+        }
         try {
           const token = await oauthMock(providerName);
           localStorage.setItem('token', token);

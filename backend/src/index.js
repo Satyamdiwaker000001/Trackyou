@@ -8,7 +8,8 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
-const projectRoutes = require('./routes/projects'); // New projects route
+const projectRoutes = require('./routes/projects');
+const userRoutes = require('./routes/user');
 const { initScheduler } = require('./services/reminder');
 
 const app = express();
@@ -35,10 +36,21 @@ initScheduler();
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/user', userRoutes);
 
 app.get('/api/health', (req, res) => res.json({ 
   status: 'ok', 
   database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' 
 }));
 
-app.listen(PORT, () => console.log(`Backend server running on http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`Backend server running on http://localhost:${PORT}`));
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Port ${PORT} is already in use by another process.`);
+    console.error(`   → Close the other terminal running the backend, then restart.\n`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
+});
