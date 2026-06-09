@@ -24,11 +24,17 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: 'Title and deadline are required' });
   }
 
+  // Validate date before passing to Mongoose
+  const parsedDeadline = new Date(deadline);
+  if (isNaN(parsedDeadline.getTime())) {
+    return res.status(400).json({ message: 'Invalid deadline date. Please provide a valid date and time.' });
+  }
+
   try {
     const newTask = new Task({
       title,
       description,
-      deadline: new Date(deadline),
+      deadline: parsedDeadline,
       userId: req.user.id
     });
     const savedTask = await newTask.save();
@@ -50,7 +56,12 @@ router.put('/:id', async (req, res) => {
 
     if (title !== undefined) task.title = title;
     if (description !== undefined) task.description = description;
-    if (deadline !== undefined) task.deadline = new Date(deadline);
+    if (deadline !== undefined) {
+      const parsedDeadline = new Date(deadline);
+      if (!isNaN(parsedDeadline.getTime())) {
+        task.deadline = parsedDeadline;
+      }
+    }
     if (completed !== undefined) {
       task.completed = completed;
       // If completed state is flipped back to false, allow email reminder notifications to fire again

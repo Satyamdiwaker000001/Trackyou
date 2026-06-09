@@ -76,6 +76,26 @@ export async function getProfile() {
 }
 
 /**
+ * Send test email to current user.
+ */
+export async function sendTestEmail() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/test-email`, {
+      method: "POST",
+      headers: getHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send test email");
+    }
+    return data;
+  } catch (err) {
+    console.error("Test email API error:", err);
+    throw err;
+  }
+}
+
+/**
  * Fetch all tasks.
  */
 export async function fetchTasks() {

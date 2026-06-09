@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { sendWelcomeEmail } = require('../services/email');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'trackyou_secret_key_123';
 
@@ -24,6 +25,10 @@ router.post('/register', async (req, res) => {
 
     // Create JWT Token
     const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    // Send welcome email asynchronously
+    sendWelcomeEmail(newUser.email, newUser.name).catch(err => console.error("Failed to send welcome email:", err));
+
     res.status(201).json({ token, message: 'Registration successful' });
   } catch (err) {
     console.error('Registration error:', err);
@@ -67,6 +72,7 @@ router.post('/oauth', async (req, res) => {
   }
 
   try {
+    let isNewUser = false;
     let user = await User.findOne({ email });
     if (!user) {
       // Create a new user from OAuth data
@@ -78,6 +84,7 @@ router.post('/oauth', async (req, res) => {
         photo: photo || ''
       });
       await user.save();
+      isNewUser = true;
     } else {
       // Update existing user with latest photo/name from OAuth if they logged in via OAuth again
       let updated = false;
@@ -93,6 +100,12 @@ router.post('/oauth', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    // If new user, send welcome email
+    if (isNewUser) {
+      sendWelcomeEmail(user.email, user.name).catch(err => console.error("Failed to send welcome email:", err));
+    }
+
     res.json({ token, message: `OAuth login successful` });
   } catch (err) {
     console.error('Real OAuth login error:', err);

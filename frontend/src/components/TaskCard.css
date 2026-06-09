@@ -4,25 +4,26 @@
 
 .task-card {
   padding: 1.75rem;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--box-shadow-premium);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 1.25rem;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--transition-smooth);
   overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Hover effect with soft glow */
 .task-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--color-border-focus);
+  box-shadow: var(--box-shadow-hover);
 }
 
 .task-card::before {
@@ -32,54 +33,58 @@
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+  background: var(--primary-gradient);
   opacity: 1;
-  transition: opacity 0.3s ease;
+  transition: var(--transition-smooth);
 }
 
 /* Completed/Done state styling */
-.task-card.done {
-  opacity: 0.7;
+.task-card.completed {
+  opacity: 0.75;
 }
 
-.task-card.done::before {
-  background: #10b981;
+.task-card.completed::before {
+  background: var(--color-success);
 }
 
-.task-card.done h3 {
+.task-card.completed h3 {
   text-decoration: line-through;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .task-card h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--color-text-primary);
   line-height: 1.4;
   margin: 0;
+  text-align: left;
 }
 
 .task-card p {
   font-size: 0.95rem;
-  color: #94a3b8;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin: 0;
+  text-align: left;
 }
 
 .task-card .deadline {
   font-size: 0.825rem;
   font-weight: 600;
-  color: #a5b4fc;
+  color: var(--color-primary);
   background: rgba(99, 102, 241, 0.1);
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 9999px;
   align-self: flex-start;
   margin-top: auto;
+  border: 1px solid rgba(99, 102, 241, 0.15);
 }
 
-.task-card.done .deadline {
-  color: #34d399;
+.task-card.completed .deadline {
+  color: var(--color-success);
   background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.15);
 }
 
 /* Actions */
@@ -88,48 +93,56 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--color-border);
   padding-top: 1rem;
 }
 
 .task-card button {
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.1rem;
   font-size: 0.85rem;
-  font-weight: 600;
-  border-radius: 8px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-smooth);
   border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 /* Complete / Undo button style */
 .btn-toggle-complete {
-  background: #6366f1;
+  background: var(--color-primary);
   color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .btn-toggle-complete:hover {
-  background: #818cf8;
+  background: #7a7dfd;
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
 }
 
-.task-card.done .btn-toggle-complete {
+.task-card.completed .btn-toggle-complete {
   background: transparent;
-  color: #10b981;
+  color: var(--color-success);
   border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: none;
 }
 
-.task-card.done .btn-toggle-complete:hover {
+.task-card.completed .btn-toggle-complete:hover {
   background: rgba(16, 185, 129, 0.08);
 }
 
 /* Delete button style */
 .btn-delete-task {
   background: transparent;
-  color: #ef4444;
+  color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.2);
 }
 
 .btn-delete-task:hover {
   background: rgba(239, 68, 68, 0.08);
   border-color: rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
 }
