@@ -1,27 +1,43 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from '../components/TaskCard';
-import { fetchTasks, createTask, updateTask, deleteTask, getProfile, fetchProjects, createProject, deleteProject, sendTestEmail } from '../services/api';
+import { fetchTasks, createTask, updateTask, deleteTask, getProfile, fetchProjects, createProject, deleteProject, sendTestEmail, changePassword, deleteAccount } from '../services/api';
 import { FiGrid, FiList, FiTrendingUp, FiSettings, FiBell, FiSearch, FiLogOut, FiPlus, FiX, FiFolder, FiTrash2, FiMail, FiCheckSquare, FiClock, FiZap } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, isSameDay } from 'date-fns';
 import './Dashboard.css';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-
-
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
+import { SkeletonCard, SkeletonMetricCard } from '../components/SkeletonLoader';
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   
+  const { addToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, isDanger: true });
+
+  // Password Change Modal State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+
   // Settings State
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) return savedTheme === 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   
   // Search, Filtering & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,9 +45,14 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('deadline');
   
   // Task form
+  const [taskFormMode, setTaskFormMode] = useState('create');
+  const [editTaskId, setEditTaskId] = useState(null);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
   const [taskDeadline, setTaskDeadline] = useState('');
+  const [taskPriority, setTaskPriority] = useState('medium');
+  const [taskTags, setTaskTags] = useState('');
+  const [taskProjectId, setTaskProjectId] = useState('');
   
   // Project form
   const [projectTitle, setProjectTitle] = useState('');
@@ -57,6 +78,8 @@ export default function Dashboard() {
         console.error("Dashboard mount error:", err);
         localStorage.removeItem('token');
         navigate('/login');
+      } finally {
+        setIsLoading(false);
       }
     }
     loadDashboardData();
@@ -66,8 +89,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (isDarkMode) {
       document.body.classList.remove('light-theme');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.body.classList.add('light-theme');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
@@ -76,34 +101,65 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-  const handleCreateTask = async e => {
+  const openCreateTaskModal = () => {
+    setTaskFormMode('create');
+    setTaskTitle('');
+    setTaskDesc('');
+    setTaskDeadline('');
+    setTaskPriority('medium');
+    setTaskTags('');
+    setTaskProjectId('');
+    setIsModalOpen(true);
+  };
+
+  const openEditTaskModal = (task) => {
+    setTaskFormMode('edit');
+    setEditTaskId(task._id);
+    setTaskTitle(task.title);
+    setTaskDesc(task.description || '');
+    setTaskDeadline(task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : '');
+    setTaskPriority(task.priority || 'medium');
+    setTaskTags(task.tags && task.tags.length ? task.tags.join(', ') : '');
+    setTaskProjectId(task.projectId || '');
+    setIsModalOpen(true);
+  };
+
+  const handleSubmitTask = async e => {
     e.preventDefault();
     if (!taskTitle || !taskDeadline) {
-      alert("Title and Deadline are required");
+      addToast("Title and Deadline are required", "error");
       return;
     }
 
-    // Validate the date is a real, parseable date
     const parsedDeadline = new Date(taskDeadline);
     if (isNaN(parsedDeadline.getTime())) {
-      alert("Please select a valid deadline date and time.");
+      addToast("Please select a valid deadline date and time.", "error");
       return;
     }
+
+    const taskPayload = {
+      title: taskTitle,
+      description: taskDesc,
+      deadline: parsedDeadline.toISOString(),
+      priority: taskPriority,
+      tags: taskTags.split(',').map(t => t.trim()).filter(Boolean),
+      projectId: taskProjectId || undefined
+    };
 
     setIsSubmitting(true);
     try {
-      const newTask = await createTask({
-        title: taskTitle,
-        description: taskDesc,
-        deadline: parsedDeadline.toISOString()  // Always send ISO 8601 to backend
-      });
-      setTasks([newTask, ...tasks]);
-      setTaskTitle('');
-      setTaskDesc('');
-      setTaskDeadline('');
+      if (taskFormMode === 'create') {
+        const newTask = await createTask(taskPayload);
+        setTasks([newTask, ...tasks]);
+        addToast("Task created successfully!", "success");
+      } else {
+        const updatedTask = await updateTask(editTaskId, taskPayload);
+        setTasks(tasks.map(t => (t._id === editTaskId ? updatedTask : t)));
+        addToast("Task updated successfully!", "success");
+      }
       setIsModalOpen(false);
     } catch (err) {
-      alert(err.message || "Failed to create task");
+      addToast(err.message || "Failed to save task", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -114,24 +170,34 @@ export default function Dashboard() {
       const updated = await updateTask(taskId, { completed: !currentStatus });
       setTasks(tasks.map(t => (t._id === taskId ? updated : t)));
     } catch (err) {
-      alert(err.message || "Failed to update task");
+      addToast(err.message || "Failed to update task", "error");
     }
   };
 
-  const handleDeleteTask = async taskId => {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
-    try {
-      await deleteTask(taskId);
-      setTasks(tasks.filter(t => t._id !== taskId));
-    } catch (err) {
-      alert(err.message || "Failed to delete task");
-    }
+  const handleDeleteTask = (taskId) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Task',
+      message: 'Are you sure you want to delete this task? This action cannot be undone.',
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await deleteTask(taskId);
+          setTasks(tasks.filter(t => t._id !== taskId));
+          addToast("Task deleted", "success");
+        } catch (err) {
+          addToast(err.message || "Failed to delete task", "error");
+        }
+      },
+      onCancel: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+    });
   };
 
   const handleCreateProject = async e => {
     e.preventDefault();
     if (!projectTitle) {
-      alert("Project title is required");
+      addToast("Project title is required", "error");
       return;
     }
     setIsSubmitting(true);
@@ -144,30 +210,82 @@ export default function Dashboard() {
       setProjectTitle('');
       setProjectDesc('');
       setIsProjectModalOpen(false);
+      addToast("Project created successfully!", "success");
     } catch (err) {
-      alert(err.message || "Failed to create project");
+      addToast(err.message || "Failed to create project", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteProject = async projectId => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
-    try {
-      await deleteProject(projectId);
-      setProjects(projects.filter(p => p._id !== projectId));
-    } catch (err) {
-      alert(err.message || "Failed to delete project");
-    }
+  const handleDeleteProject = (projectId) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Project',
+      message: 'Are you sure you want to delete this project? All associated tasks will remain but will be unlinked.',
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await deleteProject(projectId);
+          setProjects(projects.filter(p => p._id !== projectId));
+          addToast("Project deleted", "success");
+        } catch (err) {
+          addToast(err.message || "Failed to delete project", "error");
+        }
+      },
+      onCancel: () => setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+    });
   };
 
   const handleTestEmail = async () => {
     try {
-      await sendTestEmail();
-      alert("Test email sent successfully! Please check your real inbox.");
+      const res = await sendTestEmail();
+      addToast(res.message || "Test email sent!", 'success');
+      if (res.previewUrl) {
+        console.log("Email Preview URL:", res.previewUrl);
+      }
     } catch (err) {
-      alert("Error sending test email. Have you set your real Gmail credentials in backend/.env yet?\n\nError: " + err.message);
+      addToast(err.message || 'Failed to send test email', 'error');
     }
+  };
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return;
+    setIsPasswordSubmitting(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      addToast('Password changed successfully!', 'success');
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err) {
+      addToast(err.message || 'Failed to change password', 'error');
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccountConfirm = () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Account',
+      message: 'Are you absolutely sure you want to delete your account? This action cannot be undone and will delete all your tasks and projects permanently.',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await deleteAccount();
+          localStorage.removeItem('token');
+          navigate('/login');
+        } catch (err) {
+          addToast(err.message || 'Failed to delete account', 'error');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      },
+      onCancel: () => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })
+    });
   };
 
   // Helper functions for user formatting
@@ -250,7 +368,17 @@ export default function Dashboard() {
   const dynamicChartData = getDynamicChartData();
 
   // Views
-  const renderOverview = () => (
+  const renderOverview = () => {
+    if (isLoading) {
+      return (
+        <section className="metrics-grid">
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+        </section>
+      );
+    }
+    return (
     <>
       <section className="panel-greeting">
         <h1>Welcome back, <span className="text-gradient">{user ? formatName(user).split(' ')[0] : 'Achiever'}!</span></h1>
@@ -306,19 +434,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="metric-card glass">
-          <div className="metric-header">
-            <span className="metric-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FiZap style={{ color: 'var(--color-accent)', fontSize: '1.25rem' }} />
-              Focus Time
-            </span>
-            <span className="metric-badge-tag status-success">Active</span>
-          </div>
-          <div className="metric-body">
-            <span className="metric-value text-success">{(completedTasks * 1.5).toFixed(1)}h</span>
-            <span className="metric-subtext">Productive hours logged</span>
-          </div>
-        </div>
       </section>
 
       <section className="chart-widget-section glass">
@@ -350,7 +465,7 @@ export default function Dashboard() {
         </div>
       </section>
     </>
-  );
+  )};
 
   const renderTasks = () => {
     const filtered = getFilteredAndSortedTasks();
@@ -402,7 +517,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {tasks.length === 0 ? (
+        {isLoading ? (
+          <div className="task-grid">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : tasks.length === 0 ? (
           <div className="empty-state glass">
             <p>No tasks found. Click "New Task" in the sidebar to create your first goal!</p>
           </div>
@@ -414,7 +535,13 @@ export default function Dashboard() {
         ) : (
           <div className="task-grid">
             {filtered.map(task => (
-              <TaskCard key={task._id} task={task} onToggleComplete={handleToggleComplete} onDelete={handleDeleteTask} />
+              <TaskCard 
+                key={task._id} 
+                task={task} 
+                onToggleComplete={handleToggleComplete} 
+                onDelete={handleDeleteTask} 
+                onEdit={openEditTaskModal}
+              />
             ))}
           </div>
         )}
@@ -422,44 +549,72 @@ export default function Dashboard() {
     );
   };
 
-  const renderProjects = () => (
-    <section className="panel-tasks-section">
-      <div className="tasks-header">
-        <h2>Active Projects</h2>
-        <button className="primary-btn" style={{ padding: '0.6rem 1rem', borderRadius: '10px' }} onClick={() => setIsProjectModalOpen(true)}>
-          <FiPlus /> New Project
-        </button>
-      </div>
-      {projects.length === 0 ? (
-        <div className="empty-state glass">
-          <FiFolder style={{ fontSize: '3rem', marginBottom: '1rem', color: '#64748b' }} />
-          <p>No active projects yet. Group your tasks into projects to track broader milestones.</p>
+  const renderProjects = () => {
+    if (isLoading) {
+      return (
+        <section className="panel-tasks-section">
+          <div className="tasks-header"><h2>Active Projects</h2></div>
+          <div className="metrics-grid">
+            <SkeletonMetricCard /><SkeletonMetricCard />
+          </div>
+        </section>
+      );
+    }
+    
+    return (
+      <section className="panel-tasks-section">
+        <div className="tasks-header">
+          <h2>Active Projects</h2>
+          <button className="primary-btn" style={{ padding: '0.6rem 1rem', borderRadius: '10px' }} onClick={() => setIsProjectModalOpen(true)}>
+            <FiPlus /> New Project
+          </button>
         </div>
-      ) : (
-        <div className="metrics-grid">
-          {projects.map(project => (
-            <div key={project._id} className="metric-card glass" style={{ minHeight: 'auto' }}>
-              <div className="metric-header" style={{ marginBottom: '1rem' }}>
-                <span className="metric-title" style={{ color: '#ffffff', fontSize: '1.1rem', textTransform: 'none' }}>{project.title}</span>
-                <span className="metric-badge-tag status-success">{project.status}</span>
-              </div>
-              <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                {project.description || "No description provided."}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button 
-                  onClick={() => handleDeleteProject(project._id)}
-                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
-                >
-                  <FiTrash2 /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+        {projects.length === 0 ? (
+          <div className="empty-state glass">
+            <FiFolder style={{ fontSize: '3rem', marginBottom: '1rem', color: '#64748b' }} />
+            <p>No active projects yet. Group your tasks into projects to track broader milestones.</p>
+          </div>
+        ) : (
+          <div className="metrics-grid">
+            {projects.map(project => {
+              const projectTasks = tasks.filter(t => t.projectId === project._id);
+              const total = projectTasks.length;
+              const completed = projectTasks.filter(t => t.completed).length;
+              const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+              return (
+                <div key={project._id} className="metric-card glass" style={{ minHeight: 'auto' }}>
+                  <div className="metric-header" style={{ marginBottom: '1rem' }}>
+                    <span className="metric-title" style={{ color: '#ffffff', fontSize: '1.1rem', textTransform: 'none' }}>{project.title}</span>
+                    <span className="metric-badge-tag status-success">{project.status}</span>
+                  </div>
+                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.5' }}>
+                    {project.description || "No description provided."}
+                  </p>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                    <div style={{ flex: 1, height: '6px', background: 'var(--color-surface-hover)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${progress}%`, height: '100%', background: progress === 100 ? 'var(--color-success)' : 'var(--color-primary)', transition: 'width 0.3s ease' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>{completed}/{total}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => handleDeleteProject(project._id)}
+                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+                    >
+                      <FiTrash2 /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    );
+  };
 
   const renderAnalytics = () => (
     <section className="panel-tasks-section">
@@ -548,14 +703,14 @@ export default function Dashboard() {
               <FiMail /> Send Test Email
             </button>
             {user && user.provider === 'local' && (
-              <button className="btn-cancel" onClick={() => alert("Change Password UI coming soon")} style={{ padding: '0.6rem 1rem', borderRadius: '8px', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-hover)' }}>
+              <button className="btn-cancel" onClick={() => setIsPasswordModalOpen(true)} style={{ padding: '0.6rem 1rem', borderRadius: '8px', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-hover)' }}>
                 Change Password
               </button>
             )}
             <button className="btn-cancel" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-hover)' }}>
               <FiLogOut /> Sign Out
             </button>
-            <button className="btn-cancel" onClick={() => alert("Are you sure? This cannot be undone.")} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+            <button className="btn-cancel" onClick={handleDeleteAccountConfirm} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
               Delete Account
             </button>
           </div>
@@ -580,18 +735,20 @@ export default function Dashboard() {
         </main>
       </div>
 
+      <ConfirmDialog {...confirmDialog} />
+
       {/* Task Creation Modal */}
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-card glass-modal">
+        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-card glass-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Task</h2>
+              <h2>{taskFormMode === 'create' ? 'Create New Task' : 'Edit Task'}</h2>
               <button className="btn-close-modal" onClick={() => setIsModalOpen(false)}>
                 <FiX />
               </button>
             </div>
             
-            <form onSubmit={handleCreateTask} className="modal-form">
+            <form onSubmit={handleSubmitTask} className="modal-form">
               <div className="form-group">
                 <label htmlFor="taskTitle">Task Title</label>
                 <input
@@ -622,9 +779,52 @@ export default function Dashboard() {
                   id="taskDeadline"
                   type="datetime-local"
                   value={taskDeadline}
-                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                   onChange={e => setTaskDeadline(e.target.value)}
                   required
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label htmlFor="taskPriority">Priority</label>
+                  <select
+                    id="taskPriority"
+                    value={taskPriority}
+                    onChange={e => setTaskPriority(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="taskProjectId">Project</label>
+                  <select
+                    id="taskProjectId"
+                    value={taskProjectId}
+                    onChange={e => setTaskProjectId(e.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">No Project</option>
+                    {projects.map(p => (
+                      <option key={p._id} value={p._id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="taskTags">Tags (comma separated)</label>
+                <input
+                  id="taskTags"
+                  type="text"
+                  placeholder="e.g. urgent, frontend, bug"
+                  value={taskTags}
+                  onChange={e => setTaskTags(e.target.value)}
                   disabled={isSubmitting}
                 />
               </div>
@@ -643,8 +843,8 @@ export default function Dashboard() {
       )}
       {/* Project Creation Modal */}
       {isProjectModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-card glass-modal">
+        <div className="modal-backdrop" onClick={() => setIsProjectModalOpen(false)}>
+          <div className="modal-card glass-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Create New Project</h2>
               <button className="btn-close-modal" onClick={() => setIsProjectModalOpen(false)}>
@@ -683,6 +883,52 @@ export default function Dashboard() {
                 </button>
                 <button type="submit" className="primary-btn" disabled={isSubmitting}>
                   {isSubmitting ? 'Creating...' : 'Create Project'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="modal-card glass-modal" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Change Password</h2>
+              <button className="btn-close-modal" onClick={() => setIsPasswordModalOpen(false)}>
+                <FiX />
+              </button>
+            </div>
+            <form onSubmit={handleChangePasswordSubmit} className="modal-form">
+              <div className="form-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  required
+                  disabled={isPasswordSubmitting}
+                />
+              </div>
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  disabled={isPasswordSubmitting}
+                />
+              </div>
+              <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn-cancel" onClick={() => setIsPasswordModalOpen(false)} disabled={isPasswordSubmitting}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn" disabled={isPasswordSubmitting}>
+                  {isPasswordSubmitting ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>

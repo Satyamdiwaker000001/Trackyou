@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiGrid, FiList, FiFolder, FiTrendingUp, FiSettings, FiPlus } from 'react-icons/fi';
+import { FiGrid, FiList, FiFolder, FiTrendingUp, FiSettings, FiPlus, FiX } from 'react-icons/fi';
 
 /**
  * Sidebar component for the dashboard.
@@ -7,16 +7,24 @@ import { FiGrid, FiList, FiFolder, FiTrendingUp, FiSettings, FiPlus } from 'reac
  *  - activeTab: current active tab string
  *  - setActiveTab: function to change active tab
  *  - setIsModalOpen: function to open the New Task modal
+ *  - isSidebarOpen: boolean for mobile view
+ *  - setIsSidebarOpen: function to close sidebar
  */
-const Sidebar = ({ activeTab, setActiveTab, setIsModalOpen }) => {
+const Sidebar = ({ activeTab, setActiveTab, setIsModalOpen, isSidebarOpen, setIsSidebarOpen }) => {
   return (
-    <aside className="dashboard-sidebar">
-      <div className="sidebar-brand">
-        <div className="brand-logo-wrap">
-          <span className="brand-dot"></span>
+    <>
+      {/* Mobile overlay backdrop */}
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+      <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand">
+          <div className="brand-logo-wrap">
+            <span className="brand-dot"></span>
+          </div>
+          <h2>TrackYourDay</h2>
+          <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
+            <FiX />
+          </button>
         </div>
-        <h2>TrackYourDay</h2>
-      </div>
 
       <nav className="sidebar-menu">
         <div className="menu-group">
@@ -64,6 +72,7 @@ const Sidebar = ({ activeTab, setActiveTab, setIsModalOpen }) => {
         </button>
       </div>
     </aside>
+    </>
   );
 };
 

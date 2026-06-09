@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
 // Create Task
 router.post('/', async (req, res) => {
-  const { title, description, deadline } = req.body;
+  const { title, description, deadline, priority, tags, projectId } = req.body;
   if (!title || !deadline) {
     return res.status(400).json({ message: 'Title and deadline are required' });
   }
@@ -35,6 +35,9 @@ router.post('/', async (req, res) => {
       title,
       description,
       deadline: parsedDeadline,
+      priority: priority || 'medium',
+      tags: tags || [],
+      projectId: projectId || undefined,
       userId: req.user.id
     });
     const savedTask = await newTask.save();
@@ -47,9 +50,9 @@ router.post('/', async (req, res) => {
 
 // Update Task (Toggle completed, title, etc)
 router.put('/:id', async (req, res) => {
-  const { title, description, deadline, completed } = req.body;
+  const { title, description, deadline, completed, priority, tags, projectId } = req.body;
   try {
-    let task = await Task.findOne({ _id: req.id || req.params.id, userId: req.user.id });
+    let task = await Task.findOne({ _id: req.params.id, userId: req.user.id });
     if (!task) {
       return res.status(404).json({ message: 'Task not found or unauthorized' });
     }
@@ -62,6 +65,9 @@ router.put('/:id', async (req, res) => {
         task.deadline = parsedDeadline;
       }
     }
+    if (priority !== undefined) task.priority = priority;
+    if (tags !== undefined) task.tags = tags;
+    if (projectId !== undefined) task.projectId = projectId || null;
     if (completed !== undefined) {
       task.completed = completed;
       // If completed state is flipped back to false, allow email reminder notifications to fire again
