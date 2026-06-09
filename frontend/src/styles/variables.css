@@ -1,14 +1,22 @@
 :root {
+  /* Primary hue */
   --color-primary-h: 210;
   --color-primary-s: 60%;
   --color-primary-l: 55%;
   --color-primary: hsl(var(--color-primary-h), var(--color-primary-s), var(--color-primary-l));
 
+  /* Gradient for premium look */
+  --primary-gradient-start: hsl(210, 60%, 60%);
+  --primary-gradient-end: hsl(260, 55%, 55%);
+  --primary-gradient: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+
+  /* Dark mode background */
   --color-bg: #0f0f0f;
   --color-surface: rgba(255,255,255,0.08);
   --color-text-primary: #ffffff;
   --color-text-secondary: #bbbbbb;
 
+  /* Spacing & radii */
   --radius: 12px;
   --transition: 0.2s ease-out;
 }
