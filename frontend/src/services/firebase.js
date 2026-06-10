@@ -1,6 +1,6 @@
 // src/services/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 // Your web app's Firebase configuration
 // REPLACE these with your actual Firebase config keys in the frontend/.env file
@@ -20,4 +20,4 @@ const auth = getAuth(app);
 // Providers
 const googleProvider = new GoogleAuthProvider();
 
-export { auth, googleProvider, signInWithPopup };
+export { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult };
