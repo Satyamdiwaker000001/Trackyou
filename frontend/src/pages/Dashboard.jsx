@@ -8,7 +8,9 @@ import { format, subDays, isSameDay } from 'date-fns';
 import './Dashboard.css';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import CommandPalette from '../components/CommandPalette';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CalendarView from '../components/CalendarView';
 import { useToast } from '../components/ToastContext';
 import { SkeletonCard, SkeletonMetricCard } from '../components/SkeletonLoader';
 
@@ -20,6 +22,7 @@ export default function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   
   const { addToast } = useToast();
@@ -95,6 +98,18 @@ export default function Dashboard() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  // Command Palette Keyboard Shortcut
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCmdPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -571,13 +586,13 @@ export default function Dashboard() {
         </div>
         {projects.length === 0 ? (
           <div className="empty-state glass">
-            <FiFolder style={{ fontSize: '3rem', marginBottom: '1rem', color: '#64748b' }} />
+            <FiFolder style={{ fontSize: '3rem', marginBottom: '1rem', color: 'var(--color-text-muted)' }} />
             <p>No active projects yet. Group your tasks into projects to track broader milestones.</p>
           </div>
         ) : (
           <div className="metrics-grid">
             {projects.map(project => {
-              const projectTasks = tasks.filter(t => t.projectId === project._id);
+              const projectTasks = tasks.filter(t => String(t.projectId) === String(project._id));
               const total = projectTasks.length;
               const completed = projectTasks.filter(t => t.completed).length;
               const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
@@ -585,10 +600,10 @@ export default function Dashboard() {
               return (
                 <div key={project._id} className="metric-card glass" style={{ minHeight: 'auto' }}>
                   <div className="metric-header" style={{ marginBottom: '1rem' }}>
-                    <span className="metric-title" style={{ color: '#ffffff', fontSize: '1.1rem', textTransform: 'none' }}>{project.title}</span>
+                    <span className="metric-title" style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem', textTransform: 'none' }}>{project.title}</span>
                     <span className="metric-badge-tag status-success">{project.status}</span>
                   </div>
-                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.5' }}>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: '1.5' }}>
                     {project.description || "No description provided."}
                   </p>
                   
@@ -602,7 +617,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => handleDeleteProject(project._id)}
-                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
                     >
                       <FiTrash2 /> Delete
                     </button>
@@ -678,7 +693,7 @@ export default function Dashboard() {
             </div>
             <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
               <input type="checkbox" checked={emailNotifications} onChange={(e) => setEmailNotifications(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: emailNotifications ? 'var(--color-primary)' : '#475569', transition: '.4s', borderRadius: '34px' }}></span>
+              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: emailNotifications ? 'var(--color-primary)' : 'var(--color-text-secondary)', transition: '.4s', borderRadius: '34px' }}></span>
               <span style={{ position: 'absolute', height: '14px', width: '14px', left: emailNotifications ? '22px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
             </label>
           </div>
@@ -689,7 +704,7 @@ export default function Dashboard() {
             </div>
             <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
               <input type="checkbox" checked={isDarkMode} onChange={(e) => setIsDarkMode(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDarkMode ? 'var(--color-primary)' : '#475569', transition: '.4s', borderRadius: '34px' }}></span>
+              <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDarkMode ? 'var(--color-primary)' : 'var(--color-text-secondary)', transition: '.4s', borderRadius: '34px' }}></span>
               <span style={{ position: 'absolute', height: '14px', width: '14px', left: isDarkMode ? '22px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
             </label>
           </div>
@@ -721,20 +736,43 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} setIsModalOpen={setIsModalOpen} />
-      <div className="dashboard-panel">
-        <div className="dashboard-bg-glow"></div>
-        <Header activeTab={activeTab} user={user} handleLogout={handleLogout} />
-        <main className="panel-content">
-          {activeTab === 'overview' && renderOverview()}
-          {activeTab === 'tasks' && renderTasks()}
-          {activeTab === 'projects' && renderProjects()}
-          {activeTab === 'analytics' && renderAnalytics()}
-          {activeTab === 'settings' && renderSettings()}
+    <div className="flex w-full min-h-screen bg-bg-base font-sans selection:bg-primary/30">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        setIsModalOpen={setIsModalOpen} 
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        user={user}
+        handleLogout={handleLogout}
+      />
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none z-0"></div>
+        <Header 
+          activeTab={activeTab} 
+          user={user} 
+          handleLogout={handleLogout} 
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto overflow-x-hidden relative z-10 scrollbar-thin">
+          <div className="max-w-[1400px] mx-auto w-full">
+            {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'tasks' && renderTasks()}
+            {activeTab === 'projects' && renderProjects()}
+            {activeTab === 'analytics' && renderAnalytics()}
+            {activeTab === 'settings' && renderSettings()}
+            {activeTab === 'calendar' && <CalendarView tasks={tasks} onEditTask={openEditTaskModal} />}
+          </div>
         </main>
       </div>
 
+      <CommandPalette 
+        isOpen={isCmdPaletteOpen} 
+        onClose={() => setIsCmdPaletteOpen(false)} 
+        setActiveTab={setActiveTab} 
+        setIsModalOpen={setIsModalOpen} 
+        handleLogout={handleLogout}
+      />
       <ConfirmDialog {...confirmDialog} />
 
       {/* Task Creation Modal */}
@@ -834,7 +872,7 @@ export default function Dashboard() {
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Task'}
+                  {isSubmitting ? (taskFormMode === 'edit' ? 'Updating...' : 'Creating...') : (taskFormMode === 'edit' ? 'Update Task' : 'Create Task')}
                 </button>
               </div>
             </form>
