@@ -1,71 +1,26 @@
 import React from 'react';
-import { FiLogOut, FiMenu } from 'react-icons/fi';
+import { FiMenu, FiBell } from 'react-icons/fi';
 
-/**
- * Helper functions for user formatting
- */
-const formatName = userData => {
-  if (userData?.name) return userData.name;
-  if (!userData?.email) return 'Achiever';
-  const part = userData.email.split('@')[0];
-  return part.split(/[-._]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-};
-
-const getInitials = userData => {
-  if (!userData) return 'U';
-  const name = formatName(userData);
-  const parts = name.split(' ');
-  if (parts.length > 1) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
-
-const getLoginProvider = userData => {
-  if (!userData) return 'Email Account';
-  if (userData.provider === 'google') return 'Google OAuth';
-  if (userData.provider === 'github') return 'GitHub OAuth';
-  return 'Email Account';
-};
-
-/**
- * Header component for the dashboard.
- * Props:
- *  - activeTab: current active tab string (used for breadcrumb)
- *  - user: user object containing photo, name etc.
- *  - handleLogout: function to log out the user
- *  - setIsSidebarOpen: function to open the sidebar on mobile
- */
-const Header = ({ activeTab, user, handleLogout, setIsSidebarOpen }) => {
+const Header = ({ activeTab, setIsSidebarOpen }) => {
   return (
-    <header className="panel-header">
-      <div className="header-left">
-        <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
-          <FiMenu />
+    <header className="h-[72px] w-full flex items-center justify-between px-8 bg-bg-base border-b border-border sticky top-0 z-30">
+      <div className="flex items-center gap-4">
+        <button className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface" onClick={() => setIsSidebarOpen(true)}>
+          <FiMenu className="w-5 h-5" />
         </button>
-        <div className="header-breadcrumbs">
-          <span className="breadcrumb-parent">Dashboard</span>
-          <span className="breadcrumb-divider">/</span>
-          <span className="breadcrumb-current" style={{ textTransform: 'capitalize' }}>{activeTab}</span>
+        <div className="hidden sm:flex items-center text-[0.95rem] font-semibold text-text-secondary">
+          <span className="hover:text-text-primary cursor-pointer transition-colors">Workspace</span>
+          <span className="mx-3 text-border">/</span>
+          <span className="text-text-primary capitalize">{activeTab}</span>
         </div>
       </div>
 
-      <div className="header-actions">
-        {/* User Profile Info */}
-        <div className="user-profile-menu">
-          <div className="user-avatar-circle" style={user && user.photo ? { background: 'none' } : {}}>
-            {user && user.photo ? (
-              <img src={user.photo} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-            ) : (
-              getInitials(user)
-            )}
-          </div>
-          <div className="user-meta">
-            <span className="user-name">{user ? formatName(user) : 'Loading...'}</span>
-            <span className="user-provider-tag">{user ? getLoginProvider(user) : ''}</span>
-          </div>
-          <button className="btn-panel-logout" onClick={handleLogout} title="Logout">
-            <FiLogOut />
-          </button>
-        </div>
+      <div className="flex items-center gap-4">
+        {/* Notification Bell */}
+        <button className="relative p-2.5 text-text-secondary hover:text-text-primary hover:bg-surface-elevated border border-transparent hover:border-border rounded-xl transition-all">
+          <FiBell className="w-5 h-5" />
+          <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-danger border-2 border-bg-base"></span>
+        </button>
       </div>
     </header>
   );
