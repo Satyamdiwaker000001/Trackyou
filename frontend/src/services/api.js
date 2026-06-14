@@ -1,7 +1,7 @@
 // src/services/api.js
 // Centralized API client for the Trackyou frontend.
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://trackyou-zsr6.onrender.com/api";
 
 // Helper to get auth headers
 function getHeaders() {
